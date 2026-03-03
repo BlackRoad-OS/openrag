@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { isChunkLoadError } from "@/lib/utils";
 
-export default function Error({
+export default function ErrorPage({
   error,
   reset,
 }: {

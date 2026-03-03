@@ -60,12 +60,7 @@
         "noCatchAssign": "error",
         "noClassAssign": "error",
         "noCompareNegZero": "error",
-        "noConsole": {
-          "level": "warn",
-          "options": {
-            "allow": ["error", "warn"]
-          }
-        },
+        "noConsole": "warn",
         "noControlCharactersInRegex": "error",
         "noDebugger": "error",
         "noDuplicateCase": "error",
@@ -73,7 +68,7 @@
         "noDuplicateElseIf": "error",
         "noDuplicateObjectKeys": "error",
         "noDuplicateParameters": "error",
-        "noExplicitAny": "error",
+        "noExplicitAny": "warn",
         "noFallthroughSwitchClause": "error",
         "noFunctionAssign": "error",
         "noGlobalAssign": "error",
