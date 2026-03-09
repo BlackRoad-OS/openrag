@@ -97,6 +97,8 @@ class EnvConfig:
 class EnvManager:
     """Manages environment configuration for OpenRAG."""
 
+    assignment_pattern = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
+    
     def __init__(self, env_file: Optional[Path] = None):
         if env_file:
             self.env_file = env_file
@@ -120,8 +122,7 @@ class EnvManager:
                     logger.warning(f"Failed to migrate .env file: {e}")
 
         self.config = EnvConfig()
-        self.assignment_pattern = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
-
+        
     def generate_secure_password(self) -> str:
         """Generate a secure password for OpenSearch."""
         # Ensure at least one character from each category
@@ -218,7 +219,7 @@ class EnvManager:
                 if not stripped or stripped.startswith("#"):
                     continue
 
-                match = self.assignment_pattern.match(raw_line)
+                match = EnvManager.assignment_pattern.match(raw_line)
                 if not match:
                     continue
 
