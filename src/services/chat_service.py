@@ -8,9 +8,6 @@ logger = get_logger(__name__)
 
 
 class ChatService:
-    def __init__(self, flows_service=None):
-        self.flows_service = flows_service
-
     async def chat(
         self,
         prompt: str,
@@ -81,7 +78,7 @@ class ChatService:
         extra_headers["X-LANGFLOW-GLOBAL-VAR-SELECTED_EMBEDDING_MODEL"] = embedding_model
         
         # Add provider credentials to headers
-        await add_provider_credentials_to_headers(extra_headers, config, flows_service=self.flows_service)
+        add_provider_credentials_to_headers(extra_headers, config)
         logger.debug(f"[LF] Extra headers {extra_headers}")
         # Get context variables for filters, limit, and threshold
         from auth_context import (
@@ -205,7 +202,7 @@ class ChatService:
         extra_headers["X-LANGFLOW-GLOBAL-VAR-SELECTED_EMBEDDING_MODEL"] = embedding_model
         
         # Add provider credentials to headers
-        await add_provider_credentials_to_headers(extra_headers, config, langflow_request_func=clients.langflow_request)
+        add_provider_credentials_to_headers(extra_headers, config)
 
         # Build the complete filter expression like the chat service does
         filter_expression = {}
@@ -334,7 +331,7 @@ class ChatService:
             extra_headers["X-LANGFLOW-GLOBAL-VAR-SELECTED_EMBEDDING_MODEL"] = embedding_model
             
             # Add provider credentials to headers
-            await add_provider_credentials_to_headers(extra_headers, config, langflow_request_func=clients.langflow_request)
+            add_provider_credentials_to_headers(extra_headers, config)
             
             # Ensure the Langflow client exists; try lazy init if needed
             langflow_client = await clients.ensure_langflow_client()

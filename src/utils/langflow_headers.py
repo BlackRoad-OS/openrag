@@ -4,13 +4,12 @@ from typing import Dict
 from utils.container_utils import transform_localhost_url
 
 
-async def add_provider_credentials_to_headers(headers: Dict[str, str], config, flows_service=None) -> None:
+def add_provider_credentials_to_headers(headers: Dict[str, str], config) -> None:
     """Add provider credentials to headers as Langflow global variables.
     
     Args:
         headers: Dictionary of headers to add credentials to
         config: OpenRAGConfig object containing provider configurations
-        flows_service: Optional FlowsService instance to resolve Ollama URLs.
     """
     # Add OpenAI credentials
     if config.providers.openai.api_key:
@@ -29,19 +28,15 @@ async def add_provider_credentials_to_headers(headers: Dict[str, str], config, f
     
     # Add Ollama endpoint (with localhost transformation)
     if config.providers.ollama.endpoint:
-        if flows_service:
-            ollama_endpoint = await flows_service.resolve_ollama_url(config.providers.ollama.endpoint)
-        else:
-            ollama_endpoint = transform_localhost_url(config.providers.ollama.endpoint)
+        ollama_endpoint = transform_localhost_url(config.providers.ollama.endpoint, is_langflow=True)
         headers["X-LANGFLOW-GLOBAL-VAR-OLLAMA_BASE_URL"] = str(ollama_endpoint)
 
 
-async def build_mcp_global_vars_from_config(config, flows_service=None) -> Dict[str, str]:
+def build_mcp_global_vars_from_config(config) -> Dict[str, str]:
     """Build MCP global variables dictionary from OpenRAG configuration.
     
     Args:
         config: OpenRAGConfig object containing provider configurations
-        flows_service: Optional FlowsService instance to resolve Ollama URLs.
         
     Returns:
         Dictionary of global variables for MCP servers (without X-Langflow-Global-Var prefix)
@@ -65,10 +60,7 @@ async def build_mcp_global_vars_from_config(config, flows_service=None) -> Dict[
     
     # Add Ollama endpoint (with localhost transformation)
     if config.providers.ollama.endpoint:
-        if flows_service:
-            ollama_endpoint = await flows_service.resolve_ollama_url(config.providers.ollama.endpoint)
-        else:
-            ollama_endpoint = transform_localhost_url(config.providers.ollama.endpoint)
+        ollama_endpoint = transform_localhost_url(config.providers.ollama.endpoint, is_langflow=True)
         global_vars["OLLAMA_BASE_URL"] = ollama_endpoint
     
     # Add selected embedding model

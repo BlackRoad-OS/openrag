@@ -3,6 +3,7 @@ import platform
 from fastapi import Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from utils.container_utils import transform_localhost_url
 from utils.logging_config import get_logger
 from utils.telemetry import TelemetryClient, Category, MessageId
 from config.settings import (
@@ -810,12 +811,12 @@ async def update_settings(
                 flows_service = _get_flows_service()
 
                 # Update global variables
-                await _update_langflow_global_variables(current_config, flows_service=flows_service)
+                await _update_langflow_global_variables(current_config)
 
                 # Update LLM client credentials when embedding selection changes
                 if body.embedding_provider is not None or body.embedding_model is not None:
                     await _update_mcp_servers_with_provider_credentials(
-                        current_config, session_manager, flows_service=flows_service
+                        current_config, session_manager
                     )
 
                 # Update model values if provider or model changed (including removals that trigger fallback)
@@ -1071,12 +1072,11 @@ async def onboarding(
             # or if existing config has values (for OpenAI/Anthropic that might already be set)
             if (provider_fields_provided or
                 current_config.providers.openai.api_key != "" or
-                current_config.providers.anthropic.api_key != "" or
-                current_config.providers.any_configured()):
-                await _update_langflow_global_variables(current_config, flows_service=flows_service)
+                current_config.providers.anthropic.api_key != ""):
+                await _update_langflow_global_variables(current_config)
 
             if body.embedding_provider or body.embedding_model:
-                await _update_mcp_servers_with_provider_credentials(current_config, session_manager=session_manager, flows_service=flows_service)
+                await _update_mcp_servers_with_provider_credentials(current_config, session_manager)
 
             # Update model values if provider or model fields were provided
             if body.llm_provider or body.llm_model or body.embedding_provider or body.embedding_model:
@@ -1293,7 +1293,7 @@ def _get_flows_service():
     return FlowsService()
 
 
-async def _update_langflow_global_variables(config, flows_service=None):
+async def _update_langflow_global_variables(config):
     """Update Langflow global variables for all configured providers"""
     try:
         # WatsonX global variables
@@ -1331,14 +1331,19 @@ async def _update_langflow_global_variables(config, flows_service=None):
 
         # Ollama global variables
         if config.providers.ollama.endpoint:
-            if not flows_service:
-                flows_service = _get_flows_service()
 
-            endpoint = await flows_service.resolve_ollama_url(config.providers.ollama.endpoint, force=True)
-            await clients._create_langflow_global_variable(
-                "OLLAMA_BASE_URL", endpoint, modify=True
-            )
-            logger.info("Set OLLAMA_BASE_URL global variable in Langflow")
+            try:
+                endpoint = transform_localhost_url(config.providers.ollama.endpoint, is_langflow=True, is_podman=True)
+                await clients._create_langflow_global_variable(
+                    "OLLAMA_BASE_URL", endpoint, modify=True
+                )
+                logger.info("Set OLLAMA_BASE_URL global variable in Langflow (Podman)")
+            except Exception:
+                endpoint = transform_localhost_url(config.providers.ollama.endpoint, is_langflow=True, is_podman=False)
+                await clients._create_langflow_global_variable(
+                    "OLLAMA_BASE_URL", endpoint, modify=True
+                )   
+                logger.info("Set OLLAMA_BASE_URL global variable in Langflow (Docker)")
 
         if config.knowledge.embedding_model:
             await clients._create_langflow_global_variable(
@@ -1353,7 +1358,7 @@ async def _update_langflow_global_variables(config, flows_service=None):
         raise
 
 
-async def _update_mcp_servers_with_provider_credentials(config, session_manager = None, flows_service=None):
+async def _update_mcp_servers_with_provider_credentials(config, session_manager = None):
     # Update MCP servers with provider credentials
     try:
         from services.langflow_mcp_service import LangflowMCPService
@@ -1362,7 +1367,7 @@ async def _update_mcp_servers_with_provider_credentials(config, session_manager 
         mcp_service = LangflowMCPService()
 
         # Build global vars using utility function
-        mcp_global_vars = await build_mcp_global_vars_from_config(config, flows_service=flows_service)
+        mcp_global_vars = build_mcp_global_vars_from_config(config)
 
         # In no-auth mode, add the anonymous JWT token and user details
         if is_no_auth_mode() and session_manager:
@@ -1509,13 +1514,13 @@ async def reapply_all_settings(session_manager = None):
         logger.info("Reapplying all settings to Langflow flows and global variables")
 
         if config.knowledge.embedding_model or config.knowledge.embedding_provider:
-            await _update_mcp_servers_with_provider_credentials(config, session_manager, flows_service=flows_service)
+            await _update_mcp_servers_with_provider_credentials(config, session_manager)
         else:
             logger.info("No embedding model or provider configured, skipping MCP server update")
 
         # Update all Langflow settings using helper functions
         try:
-            await _update_langflow_global_variables(config, flows_service=flows_service)
+            await _update_langflow_global_variables(config)
         except Exception as e:
             logger.error(f"Failed to update Langflow global variables: {str(e)}")
             # Continue with other updates even if global variables fail
